@@ -1,15 +1,63 @@
-import express from 'express';
+import express, { NextFunction, Request, Response } from 'express';
 import http from 'http';
 import mongoose from 'mongoose';
 import config from './config/config';
+import Logging from './library/Logging';
 
 const router = express();
 
 mongoose
     .connect(config.mongo.url!)
     .then(() => {
-        console.log('connected to DB');
+        Logging.info('connected to DB');
+        StartServer();
     })
     .catch((error) => {
-        console.log(error);
+        Logging.error('Unable to connect');
+        Logging.error(error);
     });
+
+const StartServer = () => {
+    router.use((req: Request, res: Response, next: NextFunction) => {
+        /**Log the Request */
+        Logging.info(`Incoming -> Method: [${req.method}] -Url: ${req.url}] - IP: [${req.socket.remoteAddress}]`);
+
+        res.on('finish', () => {
+            /**Log the Response */
+            Logging.info(`Outgoing -> Method: [${req.method}] -Url: ${req.url}] - IP: [${req.socket.remoteAddress}] - Status: [${res.statusCode}]`);
+        });
+
+        next();
+    });
+
+    router.use(express.urlencoded({ extended: true }));
+    router.use(express.json());
+
+    /** Rules of our API */
+    router.use((req, res, next) => {
+        res.header('Access-Control-Allow-Origin', '*');
+        res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+
+        if (req.method == 'OPTIONS') {
+            res.header('Access-Control-Allow-Methods', 'PUT, POST, PATCH, DELETE, GET');
+            return res.status(200).json({});
+        }
+
+        next();
+    });
+
+    /**Routes */
+
+    /**HealthCheck */
+    router.get('/ping', (req, res, next) => res.status(200).json({ message: 'OK' }));
+
+    /**Error handler */
+    router.use((req, res) => {
+        const error = new Error('not found');
+        Logging.error(error);
+
+        return res.status(404).json({ message: error.message });
+    });
+
+    http.createServer(router).listen(config.server.port, () => Logging.info(`Server is running on port: ${config.server.port}.`));
+};

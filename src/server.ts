@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import config from './config/config';
 import Logging from './library/Logging';
 import authorRoutes from './routes/Author';
+import bookRoutes from './routes/Book';
 
 const router = express();
 
@@ -50,6 +51,7 @@ const StartServer = () => {
     /**Routes */
 
     router.use('/authors', authorRoutes);
+    router.use('/books', bookRoutes);
 
     /**HealthCheck */
     router.get('/ping', (req, res, next) => res.status(200).json({ message: 'OK' }));
